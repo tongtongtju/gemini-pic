@@ -2,6 +2,10 @@
 
 基于 OpenRouter API 调用 Gemini 模型的 AI 图片工作室。支持图片生成、编辑和解释。
 
+## 界面预览
+
+![Gemini Image Studio](docs/screenshot.png)
+
 ## 功能
 
 - **Create** — 文字生成图片 / 上传图片 + 文字编辑图片（支持多张参考图）
