@@ -165,6 +165,22 @@ GitHub 仓库 → **Actions** → **Build Desktop App** → 点击 **Run workflo
 - `Gemini Image Studio_x.x.x_aarch64.dmg`（macOS Apple Silicon）
 - `Gemini Image Studio_x.x.x_x64-setup.exe`（Windows）
 
+#### macOS 首次打开提示"已损坏"的解决方法
+
+从网上下载的未签名应用会被 macOS Gatekeeper 拦截。打开终端执行：
+
+```bash
+sudo xattr -r -d com.apple.quarantine "/Applications/Gemini Image Studio.app"
+```
+
+或者对 DMG 文件：
+
+```bash
+sudo xattr -r -d com.apple.quarantine ~/Downloads/Gemini\ Image\ Studio_*.dmg
+```
+
+执行后即可正常打开。这是所有未购买 Apple 开发者证书（$99/年）的应用的通用问题，不影响安全性。
+
 ## 配置
 
 首次打开会弹出设置窗口，需要配置：

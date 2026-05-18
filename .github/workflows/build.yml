@@ -47,7 +47,17 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Gemini Image Studio ${{ github.ref_name }}'
-          releaseBody: 'See the assets below to download.'
+          releaseBody: 'See the assets below to download.
+
+## macOS 首次打开提示"已损坏"？
+
+这是 macOS Gatekeeper 对未签名应用的安全限制，打开终端执行：
+
+```
+sudo xattr -r -d com.apple.quarantine "/Applications/Gemini Image Studio.app"
+```
+
+执行后即可正常打开。'
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
