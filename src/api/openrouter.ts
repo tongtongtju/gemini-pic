@@ -5,13 +5,13 @@ async function callOpenRouter(
   body: Record<string, unknown>
 ): Promise<unknown> {
   const url = `${settings.baseUrl.replace(/\/$/, '')}/chat/completions`
-  const payload = { ...body, stream: false }
+  const payload: Record<string, unknown> = { ...body, stream: false }
 
   console.group('[OpenRouter API Request]')
   console.log('URL:', url)
-  console.log('Model:', payload.model)
-  console.log('Modalities:', payload.modalities)
-  console.log('Has input images:', Array.isArray(payload.messages?.[0]?.content))
+  console.log('Model:', payload['model'])
+  console.log('Modalities:', payload['modalities'])
+  console.log('Has input images:', Array.isArray((payload['messages'] as any[])?.[0]?.content))
   console.groupEnd()
 
   const res = await fetch(url, {

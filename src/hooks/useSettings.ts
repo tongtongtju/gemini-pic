@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import type { Settings } from '../types'
 import { DEFAULT_SETTINGS } from '../types'
 

@@ -1,25 +1,21 @@
-/**
- * Local file save using File System Access API (Chrome/Edge).
- * Lets user pick a folder once, then images auto-save as PNG files.
- * Fallback: triggers regular download to ~/Downloads.
- */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 const DIR_HANDLE_KEY = 'gemini-studio-dir-handle'
 
-let dirHandle: FileSystemDirectoryHandle | null = null
+let dirHandle: any = null
 
 export async function pickSaveDirectory(): Promise<string | null> {
   try {
-    dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' })
-    // Store permission
-    const perms = await dirHandle.queryPermission({ mode: 'readwrite' })
-    if (perms !== 'granted') {
-      await dirHandle.requestPermission({ mode: 'readwrite' })
+    const w = window as any
+    if (!w.showDirectoryPicker) return null
+    dirHandle = await w.showDirectoryPicker({ mode: 'readwrite' })
+    const perms = await (dirHandle as any).queryPermission?.({ mode: 'readwrite' })
+    if (perms && perms !== 'granted') {
+      await (dirHandle as any).requestPermission?.({ mode: 'readwrite' })
     }
     localStorage.setItem(DIR_HANDLE_KEY, 'selected')
-    return dirHandle.name
+    return dirHandle?.name ?? null
   } catch {
-    // User cancelled or browser not supported
     return null
   }
 }
@@ -43,17 +39,12 @@ export async function getDirectoryName(): Promise<string | null> {
   return dirHandle.name
 }
 
-/**
- * Save a base64 image to the local folder.
- * Returns the filename if saved, null if fallback download triggered.
- */
 export async function saveImageToLocal(
   base64DataUrl: string,
   filename?: string
 ): Promise<string | null> {
   const name = filename || `gemini-${Date.now()}.png`
 
-  // Try File System Access API
   if (dirHandle) {
     try {
       const fileHandle = await dirHandle.getFileHandle(name, { create: true })
@@ -63,12 +54,10 @@ export async function saveImageToLocal(
       await writable.close()
       return name
     } catch {
-      // Permission lost or dir removed, fallback
       dirHandle = null
     }
   }
 
-  // Fallback: trigger browser download
   triggerDownload(base64DataUrl, name)
   return null
 }
