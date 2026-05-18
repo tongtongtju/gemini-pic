@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import type { AppMode, HistoryItem } from './types'
 import { useSettings } from './hooks/useSettings'
 import { loadAllHistory, saveHistoryItem, deleteHistoryItem, clearAllHistory } from './api/db'
-import { pickSaveDirectory, saveImageToLocal, getDirectoryName, isDirectoryAccessSupported } from './api/files'
+import { saveImageToLocal, saveLog } from './api/files'
 import { Header } from './components/Header'
 import { SettingsModal } from './components/SettingsModal'
 import { ModeSelector } from './components/ModeSelector'
@@ -20,24 +20,14 @@ export default function App() {
   const [resultImages, setResultImages] = useState<string[]>([])
   const [resultText, setResultText] = useState<string | null>(null)
   const [history, setHistory] = useState<HistoryItem[]>([])
-  const [saveDir, setSaveDir] = useState<string | null>(null)
 
   useEffect(() => {
     loadAllHistory().then(setHistory).catch(console.error)
-    getDirectoryName().then(setSaveDir)
   }, [])
 
   useEffect(() => {
     if (!isConfigured) setShowSettings(true)
   }, [isConfigured])
-
-  const handlePickDir = useCallback(async () => {
-    const name = await pickSaveDirectory()
-    if (name) {
-      setSaveDir(name)
-      console.log('[Save] Directory selected:', name)
-    }
-  }, [])
 
   const addToHistory = useCallback(async (item: Omit<HistoryItem, 'id' | 'timestamp'>) => {
     const entry: HistoryItem = { ...item, id: crypto.randomUUID(), timestamp: Date.now() }
@@ -73,20 +63,80 @@ export default function App() {
     setError(null)
   }, [])
 
-  const handleCreateResult = useCallback(async (images: string[], text: string, prompt: string, inputImages: string[]) => {
+  const handleCreateResult = useCallback(async (
+    images: string[], text: string, prompt: string,
+    inputImages: string[], options?: { aspectRatio?: string; imageSize?: string }
+  ) => {
     handleImageResult(images, text)
-    addToHistory({ mode: 'create', prompt, inputImages, resultImages: images, resultText: text })
-    // Auto-save images to local folder
-    for (let i = 0; i < images.length; i++) {
-      const saved = await saveImageToLocal(images[i], `gemini-${Date.now()}-${i}.png`)
-      if (saved) console.log('[Save] Image saved:', saved)
-    }
-  }, [handleImageResult, addToHistory])
 
-  const handleExplainResult = useCallback((text: string, inputImage: string) => {
+    // Save images to folder
+    const savedFiles: string[] = []
+    for (let i = 0; i < images.length; i++) {
+      const saved = await saveImageToLocal(images[i])
+      if (saved) savedFiles.push(saved)
+    }
+
+    // Save request/response log
+    await saveLog({
+      timestamp: new Date().toISOString(),
+      mode: 'create',
+      prompt,
+      model: settings.imageModel,
+      request: {
+        prompt,
+        hasInputImages: inputImages.length > 0,
+        inputImageCount: inputImages.length,
+        aspectRatio: options?.aspectRatio,
+        imageSize: options?.imageSize,
+      },
+      response: {
+        text,
+        imageCount: images.length,
+        imageFiles: savedFiles,
+      },
+    })
+
+    // Save to IndexedDB (only small thumbnails, not full base64)
+    addToHistory({
+      mode: 'create',
+      prompt,
+      inputImageCount: inputImages.length,
+      resultImageFiles: savedFiles,
+      resultImages: images,
+      resultText: text,
+    })
+  }, [handleImageResult, addToHistory, settings.imageModel])
+
+  const handleExplainResult = useCallback(async (text: string, _inputImage: string) => {
     handleTextResult(text)
-    addToHistory({ mode: 'explain', prompt: 'Explain image', inputImages: [inputImage], resultImages: [], resultText: text })
-  }, [handleTextResult, addToHistory])
+
+    // Save log
+    await saveLog({
+      timestamp: new Date().toISOString(),
+      mode: 'explain',
+      prompt: 'Explain image',
+      model: settings.visionModel,
+      request: {
+        prompt: 'Explain image',
+        hasInputImages: true,
+        inputImageCount: 1,
+      },
+      response: {
+        text,
+        imageCount: 0,
+        imageFiles: [],
+      },
+    })
+
+    addToHistory({
+      mode: 'explain',
+      prompt: 'Explain image',
+      inputImageCount: 1,
+      resultImageFiles: [],
+      resultImages: [],
+      resultText: text,
+    })
+  }, [handleTextResult, addToHistory, settings.visionModel])
 
   const panelProps = { settings, onLoading: setLoading, onError: setError }
 
@@ -104,21 +154,6 @@ export default function App() {
         {/* Left Panel */}
         <div className="lg:w-[420px] flex-shrink-0 space-y-4">
           <ModeSelector mode={mode} onChange={setMode} />
-
-          {/* Save directory bar */}
-          {isDirectoryAccessSupported() && (
-            <button
-              onClick={handlePickDir}
-              className="w-full flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm hover:bg-white/10 transition-colors"
-            >
-              <svg className="w-4 h-4 text-white/40 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
-              </svg>
-              <span className="text-white/50 truncate">
-                {saveDir ? `Save to: ${saveDir}` : 'Click to set save folder'}
-              </span>
-            </button>
-          )}
 
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5">
             {mode === 'create' && <CreatePanel {...panelProps} onResult={handleCreateResult} />}

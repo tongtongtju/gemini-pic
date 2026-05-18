@@ -5,7 +5,7 @@ import { createImage } from '../api/openrouter'
 
 interface CreatePanelProps {
   settings: Settings
-  onResult: (images: string[], text: string, prompt: string, inputImages: string[]) => void
+  onResult: (images: string[], text: string, prompt: string, inputImages: string[], options?: { aspectRatio?: string; imageSize?: string }) => void
   onLoading: (loading: boolean) => void
   onError: (error: string | null) => void
 }
@@ -53,7 +53,7 @@ export function CreatePanel({ settings, onResult, onLoading, onError }: CreatePa
     try {
       const options = aspectRatio !== 'auto' ? { aspectRatio, imageSize } : { imageSize }
       const result = await createImage(settings, prompt, images, options)
-      onResult(result.images, result.text, prompt, images)
+      onResult(result.images, result.text, prompt, images, { aspectRatio, imageSize })
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Generation failed')
     } finally {

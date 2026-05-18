@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { Settings } from '../types'
+import { pickSaveDirectory, getDirectoryName, forgetDirectory, isDirectoryAccessSupported } from '../api/files'
 
 const MODEL_STORAGE_KEY = 'gemini-studio-custom-models'
 
@@ -33,6 +34,11 @@ export function SettingsModal({ settings, onSave, onClose, show }: SettingsModal
   const [form, setForm] = useState(settings)
   const [customModels, setCustomModels] = useState(loadCustomModels)
   const [newModelId, setNewModelId] = useState('')
+  const [saveDirName, setSaveDirName] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (show) getDirectoryName().then(setSaveDirName)
+  }, [show])
 
   useEffect(() => {
     setForm(settings)
@@ -130,6 +136,39 @@ export function SettingsModal({ settings, onSave, onClose, show }: SettingsModal
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Save Folder */}
+          <div>
+            <label className="block text-sm text-white/60 mb-1.5">Auto-Save Folder</label>
+            {isDirectoryAccessSupported() ? (
+              <div className="flex items-center gap-2">
+                <div className="flex-1 px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white/60 truncate">
+                  {saveDirName ?? 'Not set — images will be downloaded individually'}
+                </div>
+                <button
+                  onClick={async () => {
+                    const name = await pickSaveDirectory()
+                    if (name) setSaveDirName(name)
+                  }}
+                  className="px-3 py-2.5 bg-white/10 border border-white/10 rounded-lg text-xs text-white/60 hover:text-white hover:bg-white/15 transition-colors whitespace-nowrap"
+                >
+                  Choose
+                </button>
+                {saveDirName && (
+                  <button
+                    onClick={() => { forgetDirectory(); setSaveDirName(null) }}
+                    className="px-3 py-2.5 bg-white/10 border border-white/10 rounded-lg text-xs text-white/30 hover:text-red-400 hover:bg-white/15 transition-colors whitespace-nowrap"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-white/30 px-1">
+                Folder selection is not supported in this browser. Use Chrome or Edge for this feature.
+              </p>
+            )}
           </div>
 
           {/* Add Custom Model */}

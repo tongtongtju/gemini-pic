@@ -21,12 +21,14 @@ export interface GenerateResult {
   images: string[]
 }
 
+/** Stored in IndexedDB — only lightweight data, no raw base64 */
 export interface HistoryItem {
   id: string
   mode: AppMode
   prompt: string
-  inputImages: string[]
-  resultImages: string[]
+  inputImageCount: number        // number of input images (not the data)
+  resultImageFiles: string[]     // filenames saved in the folder
+  resultImages: string[]         // base64 thumbnails (small, for display only)
   resultText: string
   timestamp: number
 }

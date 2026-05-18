@@ -39,27 +39,78 @@ export async function getDirectoryName(): Promise<string | null> {
   return dirHandle.name
 }
 
+/** Format timestamp for filenames: 2026-05-18_14-30-22 */
+function ts(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`
+}
+
+/** Ensure a subdirectory exists and return its handle */
+async function ensureDir(name: string): Promise<any> {
+  if (!dirHandle) return null
+  return await dirHandle.getDirectoryHandle(name, { create: true })
+}
+
+/** Save a generated image to the images/ subfolder. Returns the filename or null. */
 export async function saveImageToLocal(
   base64DataUrl: string,
   filename?: string
 ): Promise<string | null> {
-  const name = filename || `gemini-${Date.now()}.png`
+  const name = filename || `gemini-${ts()}.png`
 
   if (dirHandle) {
     try {
-      const fileHandle = await dirHandle.getFileHandle(name, { create: true })
+      const imgDir = await ensureDir('images')
+      const fileHandle = await imgDir.getFileHandle(name, { create: true })
       const writable = await fileHandle.createWritable()
       const blob = dataUrlToBlob(base64DataUrl)
       await writable.write(blob)
       await writable.close()
       return name
     } catch {
-      dirHandle = null
+      // Fall through to download
     }
   }
 
   triggerDownload(base64DataUrl, name)
-  return null
+  return name
+}
+
+export interface LogEntry {
+  timestamp: string
+  mode: string
+  prompt: string
+  model: string
+  request: {
+    prompt: string
+    hasInputImages: boolean
+    inputImageCount: number
+    aspectRatio?: string
+    imageSize?: string
+  }
+  response: {
+    text: string
+    imageCount: number
+    imageFiles: string[]
+    usage?: Record<string, unknown>
+  }
+}
+
+/** Save a request/response log to the logs/ subfolder */
+export async function saveLog(entry: LogEntry): Promise<string | null> {
+  if (!dirHandle) return null
+  try {
+    const logDir = await ensureDir('logs')
+    const filename = `${ts()}.json`
+    const fileHandle = await logDir.getFileHandle(filename, { create: true })
+    const writable = await fileHandle.createWritable()
+    await writable.write(JSON.stringify(entry, null, 2))
+    await writable.close()
+    return filename
+  } catch {
+    return null
+  }
 }
 
 function dataUrlToBlob(dataUrl: string): Blob {
