@@ -1,3 +1,5 @@
+import { saveImageToLocal } from '../api/files'
+
 interface ResultDisplayProps {
   images: string[]
   text: string | null
@@ -57,16 +59,14 @@ export function ResultDisplay({ images, text, loading, error }: ResultDisplayPro
             className="w-full rounded-xl border border-white/10"
           />
           <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <a
-              href={img}
-              download={`gemini-studio-${Date.now()}.png`}
+            <button
+              onClick={e => { e.stopPropagation(); saveImageToLocal(img) }}
               className="p-2 bg-black/70 backdrop-blur-sm rounded-lg text-white/80 hover:text-white transition-colors"
-              onClick={e => e.stopPropagation()}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
               </svg>
-            </a>
+            </button>
           </div>
         </div>
       ))}
