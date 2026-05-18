@@ -1,0 +1,11 @@
+node_modules/
+dist/
+release/
+src-tauri/target/
+.idea/
+*.dmg
+*.exe
+*.msi
+.env
+.DS_Store
+*.local
