@@ -121,15 +121,34 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 npm run tauri:dev
 ```
 
-#### 打包为桌面应用
+#### 本地打包（当前平台）
 
 ```bash
+# macOS 上打包 → 产出 .dmg（约 3 MB）
+npm run tauri:build
+
+# Windows 上打包 → 产出 .exe / .msi（约 3 MB）
 npm run tauri:build
 ```
 
-打包产物在 `src-tauri/target/release/bundle/` 目录下：
-- macOS: `.dmg` 文件（约 3 MB）
-- Windows: `.msi` / `.exe` 安装包
+> **注意**：Tauri 不支持跨平台打包，macOS 只能打 dmg，Windows 只能打 exe。
+> 如需同时产出 dmg + exe，使用下方 GitHub Actions 方案。
+
+#### 通过 GitHub Actions 同时打包 dmg + exe
+
+项目已配置 CI 工作流（`.github/workflows/build.yml`），推送 tag 即自动构建：
+
+```bash
+# 打 tag 触发构建
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+构建完成后，在 GitHub 仓库 → **Releases** 页面可下载：
+- `Gemini Image Studio_x.x.x_aarch64.dmg`（macOS Apple Silicon）
+- `Gemini Image Studio_x.x.x_x64-setup.exe`（Windows）
+
+也可以在 GitHub 仓库页面 → **Actions** → **Build Desktop App** → 点击 **Run workflow** 手动触发。
 
 ## 配置
 
