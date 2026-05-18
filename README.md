@@ -136,19 +136,34 @@ npm run tauri:build
 
 #### 通过 GitHub Actions 同时打包 dmg + exe
 
-项目已配置 CI 工作流（`.github/workflows/build.yml`），推送 tag 即自动构建：
+项目已配置 CI 工作流（`.github/workflows/build.yml`），**仅推送 tag 时触发**，普通 push 不会打包。
+
+**方式一：推送 tag 自动触发**
 
 ```bash
-# 打 tag 触发构建
+# 1. 正常开发提交
+git add .
+git commit -m "feat: some change"
+git push origin master
+
+# 2. 准备发版时，打 tag 触发打包
 git tag v1.0.0
 git push origin v1.0.0
+
+# 3. 更新版本时，重新打 tag
+git tag -d v1.0.1 && git push origin :refs/tags/v1.0.1   # 删除旧 tag
+git tag v1.0.2 && git push origin v1.0.2                  # 创建新 tag
 ```
+
+**方式二：手动触发**
+
+GitHub 仓库 → **Actions** → **Build Desktop App** → 点击 **Run workflow**
+
+**下载安装包**
 
 构建完成后，在 GitHub 仓库 → **Releases** 页面可下载：
 - `Gemini Image Studio_x.x.x_aarch64.dmg`（macOS Apple Silicon）
 - `Gemini Image Studio_x.x.x_x64-setup.exe`（Windows）
-
-也可以在 GitHub 仓库页面 → **Actions** → **Build Desktop App** → 点击 **Run workflow** 手动触发。
 
 ## 配置
 
