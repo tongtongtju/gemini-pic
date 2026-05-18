@@ -3,6 +3,8 @@ dist/
 release/
 src-tauri/target/
 .idea/
+.claude/
+.joycode/
 *.dmg
 *.exe
 *.msi
