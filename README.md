@@ -1,6 +1,6 @@
 # Gemini Image Studio
 
-基于 OpenRouter API 调用 Gemini 模型的 AI 图片工作室。支持图片生成、编辑和解释。
+基于 OpenRouter / Joybuilder API 调用 Gemini 模型的 AI 图片工作室。支持图片生成、编辑和解释。
 
 ## 界面预览
 
@@ -9,7 +9,8 @@
 ## 功能
 
 - **Create** — 文字生成图片 / 上传图片 + 文字编辑图片（支持多张参考图）
-- **Explain** — 上传图片，AI 分析解释图片内容
+- **Explain** — 上传图片，AI 分析解释图片内容（仅 OpenRouter）
+- **多提供商** — 支持 OpenRouter 和 Joybuilder（京东云）两种 API 提供商，按需切换
 - **本地保存** — 生成图片自动保存到本地文件夹
 - **历史记录** — IndexedDB 持久化，关闭浏览器数据不丢失
 - **模型切换** — 下拉选择 Flash / Pro 模型，支持自定义添加
@@ -50,19 +51,45 @@
 - 紫蓝渐变强调色 (`#7c3aed → #3b82f6`)
 - 现代 AI 工具风格的视觉语言
 
-### API 调用：OpenRouter → Gemini
+### API 调用：OpenRouter / Joybuilder → Gemini
 
-通过 OpenRouter 统一 API 格式调用 Google Gemini 模型：
+支持两种 API 提供商，在设置界面切换：
+
+#### OpenRouter
+
+通过 OpenRouter 统一 API 格式（兼容 OpenAI）调用 Google Gemini 模型：
 
 | 用途 | 模型 | 说明 |
 |------|------|------|
-| 图片生成/编辑 | `google/gemini-2.5-flash-image` | Nano Banana，支持文生图和图生图 |
+| 图片生成/编辑 | `google/gemini-2.5-flash-image` | 支持文生图和图生图 |
 | 图片解释 | `google/gemini-2.5-flash` | 快速视觉理解模型 |
 
 关键参数：
 - `modalities: ["image", "text"]` — 必须设置，否则只返回文字
 - `stream: false` — 非流式请求，避免图片数据丢失
 - 响应图片在 `message.images[].image_url.url`（base64 data URL）
+
+#### Joybuilder（京东云）
+
+通过 Joybuilder 平台调用 Gemini 模型，使用 Google 原生 Gemini API 格式：
+
+| 用途 | 模型 | 说明 |
+|------|------|------|
+| 图片生成/编辑 | `Gemini 3-Pro-Image-Preview` | 支持 HTTP(S) URL 图片输入 |
+
+请求格式：
+```json
+{
+  "model": "Gemini 3-Pro-Image-Preview",
+  "contents": { "role": "user", "parts": { "text": "prompt" } },
+  "generation_config": { "response_modalities": ["TEXT", "IMAGE"] },
+  "stream": false
+}
+```
+
+限制：
+- 不支持 Base64 图片输入，仅接受 HTTP(S) URL，因此 **Explain（图片解释）功能不可用**
+- 端点：`/v1/images/gemini_flash/generations`
 
 ### 数据存储：IndexedDB
 
@@ -87,6 +114,44 @@
 | 原理 | 网页 + 原生窗口壳 | 网页 + 完整浏览器 |
 
 Tauri 不是原生应用——本质是网页渲染在系统 WebView 中。对个人工具/内部产品完全够用。如需 100% 原生体验，需用 SwiftUI/Qt 重写。
+
+#### Tauri 打包原理
+
+```
+npm run tauri:build  执行流程
+│
+├── 1. 前端构建 (Vite)
+│   npm run build → 将 React/TS 编译为 HTML/CSS/JS → 输出到 dist/
+│
+├── 2. Rust 编译 (Cargo)
+│   编译 src-tauri/ 下的 Rust 代码 → 生成平台原生二进制文件 (app)
+│   Rust 代码仅负责：初始化窗口 + 注册原生插件 (文件对话框/文件系统)
+│
+├── 3. 资源打包
+│   将前端 dist/ 内嵌到 Rust 二进制中 → 单个可执行文件
+│
+└── 4. 平台打包 (bundle)
+    ├── macOS: 生成 .app → 再包装为 .dmg (Apple Silicon: aarch64)
+    │   .app 内含: 可执行文件 + WebKit 资源 + 图标 + Info.plist
+    │   .dmg 内含: .app + 背景图 + 快捷方式
+    │
+    └── Windows: 生成 .exe 安装包 / .msi
+
+最终产物:
+  src-tauri/target/release/bundle/
+  ├── dmg/Gemini Image Studio_1.0.0_aarch64.dmg   ← macOS 安装包
+  └── macos/Gemini Image Studio.app                ← macOS 应用
+```
+
+**为什么 Tauri 这么小？**
+- 不打包浏览器：直接调用 macOS 自带的 WebKit (WKWebView) / Windows 的 WebView2
+- Rust 编译后是原生机器码，不需要 Node.js 运行时
+- 前端资源经 Vite 压缩后通常 < 100KB
+
+**Tauri 的局限**
+- 依赖系统 WebView：macOS 不同版本的 WebKit 行为可能略有差异
+- 不支持跨平台打包：macOS 只能打 DMG，Windows 只能打 EXE
+- 原生能力需要写 Rust 插件（本项目已实现文件对话框和文件保存插件）
 
 ## 快速开始
 
@@ -187,7 +252,9 @@ sudo xattr -r -d com.apple.quarantine ~/Downloads/Gemini\ Image\ Studio_*.dmg
 
 ## 配置
 
-首次打开会弹出设置窗口，需要配置：
+首次打开会弹出设置窗口，需选择 API 提供商并配置对应参数：
+
+### OpenRouter
 
 | 配置项 | 说明 | 默认值 |
 |--------|------|--------|
@@ -196,14 +263,26 @@ sudo xattr -r -d com.apple.quarantine ~/Downloads/Gemini\ Image\ Studio_*.dmg
 | Image Model | 图片生成模型 | `google/gemini-2.5-flash-image` |
 | Vision Model | 图片解释模型 | `google/gemini-2.5-flash` |
 
+### Joybuilder（京东云）
+
+| 配置项 | 说明 | 默认值 |
+|--------|------|--------|
+| API Key | Joybuilder API Key | - |
+| Base URL | API 基础地址 | `http://ai-api.jdcloud.com/v1` |
+| Gemini Model | Gemini 模型选择 | `Gemini 3-Pro-Image-Preview` |
+
+两个提供商的配置独立存储，切换时互不影响。
+
 ## 项目结构
 
 ```
 src/
 ├── api/
-│   ├── openrouter.ts   # OpenRouter API 客户端
-│   ├── db.ts           # IndexedDB 持久化存储
-│   └── files.ts        # 本地文件保存
+│   ├── index.ts         # API 调度层（按 provider 路由）
+│   ├── openrouter.ts    # OpenRouter API 客户端
+│   ├── joybuilder.ts    # Joybuilder API 客户端
+│   ├── db.ts            # IndexedDB 持久化存储
+│   └── files.ts         # 本地文件保存
 ├── components/
 │   ├── Header.tsx
 │   ├── SettingsModal.tsx

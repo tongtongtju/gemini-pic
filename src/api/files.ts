@@ -16,6 +16,27 @@ function ts(): string {
 }
 
 // ── Helpers ──
+function isUrl(str: string): boolean {
+  return str.startsWith('http://') || str.startsWith('https://')
+}
+
+async function toDataUrl(src: string): Promise<string> {
+  if (!isUrl(src)) return src
+  try {
+    const res = await fetch(src)
+    const blob = await res.blob()
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  } catch (err) {
+    console.warn('[toDataUrl] Fetch failed, keeping original URL:', err)
+    return src
+  }
+}
+
 function dataUrlToBlob(dataUrl: string): Blob {
   const [header, data] = dataUrl.split(',', 2)
   const mime = header.match(/:(.*?);/)?.[1] || 'image/png'
@@ -163,14 +184,23 @@ async function browserSaveImage(dataUrl: string, filename?: string): Promise<str
       const imgDir = await dirHandle.getDirectoryHandle('images', { create: true })
       const fileHandle = await imgDir.getFileHandle(name, { create: true })
       const writable = await fileHandle.createWritable()
-      const blob = dataUrlToBlob(dataUrl)
-      await writable.write(blob)
+      if (isUrl(dataUrl)) {
+        // Fetch URL then write blob
+        const res = await fetch(dataUrl)
+        const blob = await res.blob()
+        await writable.write(blob)
+      } else {
+        const blob = dataUrlToBlob(dataUrl)
+        await writable.write(blob)
+      }
       await writable.close()
       return name
     } catch {
       // Fall through to download
     }
   }
+  // For URLs: open in new tab (can't use download attribute cross-origin)
+  // For data URLs: trigger download
   triggerDownload(dataUrl, name)
   return name
 }
@@ -220,7 +250,8 @@ export function forgetDirectory() {
   }
 }
 
-export async function saveImageToLocal(dataUrl: string, filename?: string): Promise<string | null> {
+export async function saveImageToLocal(src: string, filename?: string): Promise<string | null> {
+  const dataUrl = await toDataUrl(src)
   if (isTauri()) return tauriSaveImage(dataUrl, filename)
   return browserSaveImage(dataUrl, filename)
 }

@@ -60,7 +60,7 @@ export function ResultDisplay({ images, text, loading, error }: ResultDisplayPro
           />
           <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
-              onClick={e => { e.stopPropagation(); saveImageToLocal(img) }}
+              onClick={e => { e.stopPropagation(); saveImageToLocal(img).catch(err => console.error('[Download] Failed:', err)) }}
               className="p-2 bg-black/70 backdrop-blur-sm rounded-lg text-white/80 hover:text-white transition-colors"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

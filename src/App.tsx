@@ -29,6 +29,11 @@ export default function App() {
     if (!isConfigured) setShowSettings(true)
   }, [isConfigured])
 
+  // Reset to create mode when switching to joybuilder (explain not supported)
+  useEffect(() => {
+    if (settings.provider === 'joybuilder') setMode('create')
+  }, [settings.provider])
+
   const addToHistory = useCallback(async (item: Omit<HistoryItem, 'id' | 'timestamp'>) => {
     const entry: HistoryItem = { ...item, id: crypto.randomUUID(), timestamp: Date.now() }
     setHistory(prev => [entry, ...prev])
@@ -69,34 +74,46 @@ export default function App() {
   ) => {
     handleImageResult(images, text)
 
-    // Save images to folder
+    const model = settings.provider === 'joybuilder' ? settings.joybuilderModel : settings.imageModel
+
+    // Save images to folder (non-blocking, don't let failures prevent history)
     const savedFiles: string[] = []
-    for (let i = 0; i < images.length; i++) {
-      const saved = await saveImageToLocal(images[i])
-      if (saved) savedFiles.push(saved)
+    try {
+      for (let i = 0; i < images.length; i++) {
+        const idx = images.length > 1 ? `_${i + 1}` : ''
+        const filename = `${model}-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}${idx}.png`
+        const saved = await saveImageToLocal(images[i], filename)
+        if (saved) savedFiles.push(saved)
+      }
+    } catch (err) {
+      console.error('[Auto-save] Failed:', err)
     }
 
     // Save request/response log
-    await saveLog({
-      timestamp: new Date().toISOString(),
-      mode: 'create',
-      prompt,
-      model: settings.imageModel,
-      request: {
+    try {
+      await saveLog({
+        timestamp: new Date().toISOString(),
+        mode: 'create',
         prompt,
-        hasInputImages: inputImages.length > 0,
-        inputImageCount: inputImages.length,
-        aspectRatio: options?.aspectRatio,
-        imageSize: options?.imageSize,
-      },
-      response: {
-        text,
-        imageCount: images.length,
-        imageFiles: savedFiles,
-      },
-    })
+        model,
+        request: {
+          prompt,
+          hasInputImages: inputImages.length > 0,
+          inputImageCount: inputImages.length,
+          aspectRatio: options?.aspectRatio,
+          imageSize: options?.imageSize,
+        },
+        response: {
+          text,
+          imageCount: images.length,
+          imageFiles: savedFiles,
+        },
+      })
+    } catch (err) {
+      console.error('[SaveLog] Failed:', err)
+    }
 
-    // Save to IndexedDB (only small thumbnails, not full base64)
+    // Save to IndexedDB
     addToHistory({
       mode: 'create',
       prompt,
@@ -105,7 +122,7 @@ export default function App() {
       resultImages: images,
       resultText: text,
     })
-  }, [handleImageResult, addToHistory, settings.imageModel])
+  }, [handleImageResult, addToHistory, settings.provider, settings.imageModel, settings.joybuilderModel])
 
   const handleExplainResult = useCallback(async (text: string, _inputImage: string) => {
     handleTextResult(text)
@@ -153,10 +170,10 @@ export default function App() {
       <main className="flex-1 flex flex-col lg:flex-row gap-4 p-4 lg:p-6 max-w-7xl mx-auto w-full">
         {/* Left Panel */}
         <div className="lg:w-[420px] flex-shrink-0 space-y-4">
-          <ModeSelector mode={mode} onChange={setMode} />
+          <ModeSelector mode={mode} onChange={setMode} provider={settings.provider} />
 
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5">
-            {mode === 'create' && <CreatePanel {...panelProps} onResult={handleCreateResult} />}
+            {mode === 'create' && <CreatePanel {...panelProps} onResult={handleCreateResult} onModelChange={m => setSettings({ joybuilderModel: m })} />}
             {mode === 'explain' && <ExplainPanel {...panelProps} onResult={handleExplainResult} />}
           </div>
         </div>

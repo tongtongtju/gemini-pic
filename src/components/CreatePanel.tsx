@@ -1,16 +1,17 @@
 import { useState, useRef } from 'react'
 import type { AspectRatio, ImageSize, Settings } from '../types'
-import { ASPECT_RATIOS, IMAGE_SIZES } from '../types'
-import { createImage } from '../api/openrouter'
+import { ASPECT_RATIOS, IMAGE_SIZES, JOYBUILDER_MODELS } from '../types'
+import { createImage } from '../api/index'
 
 interface CreatePanelProps {
   settings: Settings
   onResult: (images: string[], text: string, prompt: string, inputImages: string[], options?: { aspectRatio?: string; imageSize?: string }) => void
   onLoading: (loading: boolean) => void
   onError: (error: string | null) => void
+  onModelChange: (model: string) => void
 }
 
-export function CreatePanel({ settings, onResult, onLoading, onError }: CreatePanelProps) {
+export function CreatePanel({ settings, onResult, onLoading, onError, onModelChange }: CreatePanelProps) {
   const [prompt, setPrompt] = useState('')
   const [images, setImages] = useState<string[]>([])
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('auto')
@@ -63,8 +64,33 @@ export function CreatePanel({ settings, onResult, onLoading, onError }: CreatePa
 
   const canSubmit = prompt.trim().length > 0 || images.length > 0
 
+  // Joybuilder model selector tags
+  const joybuilderTags = [...new Set(JOYBUILDER_MODELS.map(m => m.tag))]
+
   return (
     <div className="space-y-4" onPaste={handlePaste}>
+      {/* Model selector — only for Joybuilder */}
+      {settings.provider === 'joybuilder' && (
+        <div>
+          <label className="block text-xs text-white/40 mb-1">Model</label>
+          <select
+            value={settings.joybuilderModel}
+            onChange={e => onModelChange(e.target.value)}
+            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-[#7c3aed] appearance-none cursor-pointer"
+          >
+            {joybuilderTags.map(tag => (
+              <optgroup key={tag} label={tag}>
+                {JOYBUILDER_MODELS.filter(m => m.tag === tag).map(m => (
+                  <option key={m.id} value={m.id} className="bg-[#1a1a2e]">
+                    {m.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Multi-image upload area */}
       <div>
         <label className="block text-sm text-white/60 mb-1.5">

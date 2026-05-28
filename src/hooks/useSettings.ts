@@ -8,7 +8,8 @@ export function useSettings() {
   const [settings, setSettingsState] = useState<Settings>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY)
-      return stored ? { ...DEFAULT_SETTINGS, ...JSON.parse(stored) } : DEFAULT_SETTINGS
+      const parsed = stored ? { ...DEFAULT_SETTINGS, ...JSON.parse(stored) } : DEFAULT_SETTINGS
+      return parsed
     } catch {
       return DEFAULT_SETTINGS
     }
@@ -22,7 +23,9 @@ export function useSettings() {
     })
   }, [])
 
-  const isConfigured = Boolean(settings.apiKey)
+  const isConfigured = settings.provider === 'joybuilder'
+    ? Boolean(settings.joybuilderApiKey)
+    : Boolean(settings.apiKey)
 
   return { settings, setSettings, isConfigured }
 }

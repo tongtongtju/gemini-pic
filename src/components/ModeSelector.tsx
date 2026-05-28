@@ -1,8 +1,9 @@
-import type { AppMode } from '../types'
+import type { AppMode, Provider } from '../types'
 
 interface ModeSelectorProps {
   mode: AppMode
   onChange: (mode: AppMode) => void
+  provider: Provider
 }
 
 const modes: { key: AppMode; label: string; icon: string }[] = [
@@ -10,10 +11,14 @@ const modes: { key: AppMode; label: string; icon: string }[] = [
   { key: 'explain', label: 'Explain', icon: '◉' },
 ]
 
-export function ModeSelector({ mode, onChange }: ModeSelectorProps) {
+export function ModeSelector({ mode, onChange, provider }: ModeSelectorProps) {
+  const availableModes = provider === 'joybuilder'
+    ? modes.filter(m => m.key !== 'explain')
+    : modes
+
   return (
     <div className="flex gap-1 p-1 bg-white/5 rounded-xl border border-white/10">
-      {modes.map(m => (
+      {availableModes.map(m => (
         <button
           key={m.key}
           onClick={() => onChange(m.key)}

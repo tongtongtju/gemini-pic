@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import type { Settings } from '../types'
-import { explainImage } from '../api/openrouter'
+import { explainImage } from '../api/index'
 
 interface ExplainPanelProps {
   settings: Settings
